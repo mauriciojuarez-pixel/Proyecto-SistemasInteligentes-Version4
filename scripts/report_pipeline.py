@@ -5,7 +5,7 @@ Pipeline de generación de reportes PDF usando:
 - ChartExporter
 - Templates (versión con clase)
 """
-
+# scripts/report_pipeline.py
 import pandas as pd
 from pathlib import Path
 import glob

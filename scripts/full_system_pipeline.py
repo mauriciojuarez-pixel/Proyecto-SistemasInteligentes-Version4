@@ -11,7 +11,7 @@ Requisitos estructurales:
 - agente/
 - reporting/
 """
-
+# scripts/full_system_pipeline.py
 import sys
 from pathlib import Path
 import pandas as pd

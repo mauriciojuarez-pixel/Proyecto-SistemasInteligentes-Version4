@@ -1,4 +1,4 @@
-# limpieza_data_pipeline.py
+# scripts/limpieza_data_pipeline.py
 """
 Pipeline completo de limpieza y análisis de datos.
 

@@ -9,67 +9,68 @@ Este documento describe la arquitectura y las funciones principales de cada arch
 
 # 1. config.py
 
-Define la configuración central del módulo, incluyendo rutas principales del proyecto, constantes globales y creación automática de directorios para el pipeline de limpieza y análisis de datos.
+Proporciona la configuración principal del proyecto `limpieza_data`.  
+Define rutas de datasets y el nombre del logger global.
 
-## Funciones / Atributos
+## Variables / Configuración
 
-| Nombre | Descripción |
-|--------|-------------|
-| `BASE_DIR` | Directorio raíz del proyecto, calculado automáticamente usando `Path`. |
-| `RAW_PATH` | Carpeta donde se almacenan los datasets **RAW** sin procesar. |
-| `PROCESSED_PATH` | Carpeta donde se guardan los datasets **procesados** después de la limpieza. |
-| `LOG_NAME` | Nombre del logger global utilizado por todos los módulos. |
-| `RAW_PATH.mkdir()` | Garantiza que la carpeta RAW exista (la crea si no existe). |
-| `PROCESSED_PATH.mkdir()` | Garantiza que la carpeta PROCESSED exista (la crea si no existe). |
+| Variable | Descripción |
+|----------|-------------|
+| `BASE_DIR` | Directorio base del proyecto, calculado automáticamente a partir de la ubicación del archivo. |
+| `RAW_PATH` | Ruta donde se almacenan los datasets sin procesar (`data/datasets/raw`). Se crea si no existe. |
+| `PROCESSED_PATH` | Ruta donde se guardan los datasets procesados (`data/datasets/processed`). Se crea si no existe. |
+| `LOG_NAME` | Nombre del logger global utilizado en los módulos de `limpieza_data`. |
+
 
 # 2. logger.py
 
-Gestiona la creación y configuración del logging del módulo `limpieza_data`.  
-Permite registrar mensajes en consola y archivos, con timestamp y nivel de severidad.
+Proporciona funciones para inicializar y usar logging en el proyecto `limpieza_data`.  
+Incluye configuración de archivos de log diarios y helpers para distintos niveles de registro.
 
-## Funciones / Atributos
+## Funciones / Métodos
 
-| Nombre / Función | Descripción |
-|-----------------|-------------|
-| `LOGS_DIR` | Carpeta donde se guardan los logs generados. Se crea automáticamente si no existe. |
-| `DEFAULT_LOG_FILE` | Nombre y ruta por defecto del archivo de log, incluye la fecha actual. |
-| `init_logger(name: str = LOG_NAME, log_file: Path = DEFAULT_LOG_FILE, level=logging.INFO)` | Inicializa un logger con consola y archivo, con formato estándar `[timestamp] [LEVEL] message`. |
-| `logger` | Logger global inicializado con `init_logger()`. |
-| `log_info(logger_obj, msg: str)` | Registra un mensaje de nivel INFO. |
-| `log_warning(logger_obj, msg: str)` | Registra un mensaje de nivel WARNING. |
-| `log_error(logger_obj, msg: str)` | Registra un mensaje de nivel ERROR. |
-| `log_debug(logger_obj, msg: str)` | Registra un mensaje de nivel DEBUG. |
+| Función | Descripción |
+|---------|-------------|
+| `init_logger(name: str = LOG_NAME, log_file: Path = DEFAULT_LOG_FILE, level=logging.INFO)` | Inicializa un logger con nombre y archivo específicos. Configura salida a consola y a archivo. Retorna objeto logger. |
+| `log_info(logger_obj, msg: str)` | Registra un mensaje de nivel INFO usando el logger dado. |
+| `log_warning(logger_obj, msg: str)` | Registra un mensaje de nivel WARNING usando el logger dado. |
+| `log_error(logger_obj, msg: str)` | Registra un mensaje de nivel ERROR usando el logger dado. |
+| `log_debug(logger_obj, msg: str)` | Registra un mensaje de nivel DEBUG usando el logger dado. |
+
 
 
 # 3. file_loader.py
 
-Se encarga de la carga y guardado de datasets en CSV o Excel.  
-Proporciona funciones para leer archivos RAW y guardar datasets procesados, con logging de eventos y errores.
+Proporciona funciones para carga y guardado de datasets.  
+Incluye lectura de CSV y Excel, guardado de archivos procesados y carga masiva de CSV desde la carpeta RAW.
 
 ## Funciones / Métodos
 
 | Función | Descripción |
 |---------|-------------|
-| `load_csv(path: Path, encodings=("utf-8", "latin-1", "ISO-8859-1")) -> pd.DataFrame` | Carga un archivo CSV intentando múltiples encodings. Registra error si el archivo no existe o no puede leerse. |
-| `load_excel(path: Path, sheet_name=0) -> pd.DataFrame` | Carga un archivo Excel, especificando la hoja (sheet_name). Registra error si el archivo no existe o falla la lectura. |
-| `save_processed(df: pd.DataFrame, filename: str) -> Path` | Guarda un DataFrame procesado en la carpeta `PROCESSED_PATH`, como CSV o Excel según la extensión. |
-| `load_all_raw_csv() -> Dict[str, pd.DataFrame]` | Carga todos los archivos CSV presentes en la carpeta RAW y devuelve un diccionario {nombre_archivo: DataFrame}. |
+| `load_csv(path: Path, encodings=("utf-8", "latin-1", "ISO-8859-1")) -> pd.DataFrame` | Carga un archivo CSV probando varios encodings. Registra la operación en el logger y lanza errores si no se puede leer. |
+| `load_excel(path: Path, sheet_name=0) -> pd.DataFrame` | Carga un archivo Excel de la hoja indicada. Registra errores si el archivo no existe o falla la lectura. |
+| `save_processed(df: pd.DataFrame, filename: str) -> Path` | Guarda un DataFrame procesado en la carpeta PROCESSED_PATH, automáticamente como CSV o Excel según extensión. |
+| `load_all_raw_csv() -> Dict[str, pd.DataFrame]` | Carga todos los archivos CSV desde la carpeta RAW_PATH y retorna un diccionario `{nombre_archivo: DataFrame}`. |
+
 
 
 # 4. data_cleaner.py
 
-Proporciona funciones para limpiar y transformar datasets.  
-Incluye normalización de columnas, manejo de valores nulos, eliminación de duplicados, conversión de tipos y estandarización de fechas.
+Proporciona funciones para limpieza y normalización de datasets.  
+Incluye normalización de nombres de columnas, eliminación de duplicados, llenado de valores nulos, conversión de tipos y estandarización de fechas.
 
 ## Funciones / Métodos
 
 | Función | Descripción |
 |---------|-------------|
-| `normalize_columns(df: pd.DataFrame) -> pd.DataFrame` | Normaliza los nombres de columnas a minúsculas, sin espacios y con guiones bajos. |
-| `remove_duplicates(df: pd.DataFrame) -> pd.DataFrame` | Elimina filas duplicadas y registra la cantidad eliminada. |
-| `fill_nulls(df: pd.DataFrame, strategy: str = "mean", fill_value=None) -> pd.DataFrame` | Rellena valores nulos usando estrategias: mean, median o constant. |
-| `convert_types(df: pd.DataFrame, type_map: dict) -> pd.DataFrame` | Convierte tipos de columnas según un diccionario {columna: tipo}. |
-| `standardize_dates(df: pd.DataFrame, date_cols: list, fmt=None) -> pd.DataFrame` | Convierte columnas de fecha a `datetime` y opcionalmente formatea a string con `fmt`. |
+| `normalize_columns(df: pd.DataFrame) -> pd.DataFrame` | Normaliza nombres de columnas a minúsculas, sin espacios y reemplazando caracteres especiales. |
+| `remove_duplicates(df: pd.DataFrame) -> pd.DataFrame` | Elimina filas duplicadas y retorna un DataFrame limpio. |
+| `fill_nulls(df: pd.DataFrame, strategy: str = "mean", fill_value=None) -> pd.DataFrame` | Rellena valores nulos usando la estrategia indicada (`mean`, `median`, `constant`) o un valor fijo. |
+| `convert_types(df: pd.DataFrame, type_map: dict) -> pd.DataFrame` | Convierte columnas a tipos específicos según un diccionario `{columna: tipo}`. |
+| `standardize_dates(df: pd.DataFrame, date_cols: list, fmt: str = None) -> pd.DataFrame` | Convierte y estandariza columnas de fecha, probando varios formatos comunes; opcionalmente aplica formato `fmt`. |
+| `clean_data(df)` | Pipeline de limpieza que aplica: normalización de columnas, eliminación de duplicados, llenado de nulos y estandarización de fechas (columna `fecha`). |
+
 
 
 # 5. anomaly_detection.py
@@ -87,23 +88,26 @@ Incluye detección de outliers, eliminación de anomalías, etiquetado de datos 
 | `score_data_quality(df: pd.DataFrame) -> float` | Calcula un score de calidad considerando proporción de nulos y outliers; retorna valor entre 0 y 1. |
 
 
+
 # 6. analysis_tools.py
 
-Proporciona herramientas de análisis de datos para el pipeline de limpieza.  
-Incluye correlaciones, multicolinealidad, estadísticas descriptivas, histogramas y exportación a JSON.
+Proporciona funciones para análisis estadístico y de correlaciones en datasets.  
+Incluye cálculo de correlaciones, detección de multicolinealidad, generación de histogramas, exportación de resúmenes a JSON y pipeline de análisis completo.
 
 ## Funciones / Métodos
 
 | Función | Descripción |
 |---------|-------------|
-| `compute_correlations(df: pd.DataFrame, method: str = "pearson") -> pd.DataFrame` | Calcula la matriz de correlación para columnas numéricas. |
-| `detect_multicollinearity(df: pd.DataFrame, threshold: float = 0.9) -> list` | Detecta pares de columnas con alta correlación (> threshold). |
-| `visualize_correlation_matrix(corr_matrix: pd.DataFrame, out_file: str)` | Genera y guarda un heatmap de la matriz de correlación. |
-| `compute_descriptive_stats(df: pd.DataFrame) -> pd.DataFrame` | Calcula estadísticas descriptivas (media, mediana, std, min, max, etc.). |
-| `generate_histograms(df: pd.DataFrame, out_dir: str)` | Crea histogramas de todas las columnas numéricas y los guarda como PNG. |
-| `_make_json_serializable(obj)` | Convierte objetos no serializables (datetime, Timestamp, numpy, sets, NA) a formatos compatibles con JSON. |
-| `summary_to_json(summary_df: pd.DataFrame, out_file: str)` | Exporta un DataFrame a JSON, convirtiendo tipos no serializables automáticamente. |
-| `full_analysis_pipeline(df: pd.DataFrame, report_dir: str) -> dict` | Ejecuta pipeline completo de análisis: correlaciones, multicolinealidad, estadísticas, histogramas y exportación JSON; retorna un diccionario con resultados. |
+| `compute_correlations(df: pd.DataFrame, method: str = "pearson") -> pd.DataFrame` | Calcula la matriz de correlación de un DataFrame usando el método indicado (`pearson`, `kendall`, `spearman`) y registra la operación en el logger. |
+| `detect_multicollinearity(df: pd.DataFrame, threshold: float = 0.9) -> list` | Identifica pares de columnas numéricas con alta correlación (> threshold) y retorna una lista de tuplas `(col1, col2, valor_correlacion)`. |
+| `visualize_correlation_matrix(corr_matrix: pd.DataFrame, out_file: str)` | Genera un heatmap de la matriz de correlación y lo guarda como imagen. Maneja matrices vacías o con pocas columnas numéricas. |
+| `generate_histograms(df: pd.DataFrame, out_dir: str)` | Genera histogramas para todas las columnas numéricas del DataFrame y los guarda en la carpeta indicada. |
+| `_make_json_serializable(obj)` | Convierte tipos no serializables (Timestamp, datetime, NaN, ndarray, sets, etc.) a formatos compatibles con JSON. |
+| `summary_to_json(summary_df: pd.DataFrame, out_file: str)` | Exporta un DataFrame como JSON, convirtiendo cualquier tipo no serializable a una representación JSON-friendly. |
+| `compute_descriptive_stats(df: pd.DataFrame) -> dict` | Retorna estadísticas descriptivas (`mean`, `std`, `min`, `max`) de las columnas numéricas del DataFrame. |
+| `full_analysis_pipeline(df: pd.DataFrame, report_dir: str) -> dict` | Ejecuta un análisis completo del DataFrame, incluyendo correlaciones, estadísticas descriptivas y multicolinealidad, y guarda un resumen JSON en el directorio indicado. |
+| `describe_dataset(df: pd.DataFrame)` | Genera un resumen rápido con estadísticas descriptivas, correlaciones y multicolinealidad del DataFrame. |
+
 
 
 # Estructura Completa del Módulo
