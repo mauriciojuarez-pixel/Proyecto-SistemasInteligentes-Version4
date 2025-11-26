@@ -262,3 +262,73 @@ Se requieren las siguientes carpetas y módulos:
 python scripts/full_system_pipeline.py
 
 
+
+## 7. scripts/sistema_completo_pipeline.py
+
+Pipeline completo del sistema, integrando limpieza, agente IA, reportes PDF y registro de métricas.
+
+### Funcionalidades principales
+
+1. **Limpieza y análisis de datos** (`RAW` → `PROCESSED`)  
+   - Carga CSVs desde `data/datasets/raw/`.  
+   - Normaliza columnas, elimina duplicados y rellena valores nulos.  
+   - Detecta columnas de fecha y las estandariza.  
+   - Convierte columnas ID a tipo entero (`Int64`).  
+   - Detecta y elimina outliers/anomalías.  
+   - Calcula score de calidad de los datasets.  
+   - Guarda datasets procesados en `data/datasets/processed/`.  
+   - Genera análisis estadístico y reportes intermedios en `data/outputs/reports/`.  
+   - Registra métricas del dataset con `MetricsManager`.
+
+2. **Pipeline del agente autónomo IA**  
+   - Instancia `AgentController` y crea sesión `main_session`.  
+   - Genera plan de acción para análisis del dataset.  
+   - Analiza datos y genera resumen interpretativo.  
+   - Optimiza parámetros internos del agente.  
+   - Registra métricas del agente en `MetricsManager`.
+
+3. **Pipeline de reporte PDF**  
+   - Crea carpeta de salida `data/outputs/final_reports`.  
+   - Genera PDF completo usando `ReportManager` y el resumen del agente.  
+   - Registra métricas del reporte PDF (número de filas, columnas, charts).
+
+4. **Finalización**  
+   - Resetea sesión del agente (`reset_agent`).  
+   - Registra métricas finales del pipeline y duración total.  
+   - Logging completo de eventos y errores.
+
+---
+
+### Funciones / Métodos
+
+| Función | Descripción |
+|---------|-------------|
+| `detectar_columnas_fecha(df: pd.DataFrame) -> list` | Detecta columnas con posibles fechas usando formatos comunes y fallback seguro con `pd.to_datetime`. |
+| `pipeline_limpieza()` | Ejecuta pipeline de limpieza, análisis, guardado de CSVs procesados y registro de métricas de dataset. |
+| `pipeline_agente(df: pd.DataFrame)` | Ejecuta agente autónomo: plan, análisis, resumen y optimización. Retorna `controller`, `session_id` y resumen interpretativo. |
+| `pipeline_report(df, controller, session_id, resumen_interpretativo)` | Genera PDF final con `ReportManager` y registra métricas del reporte. |
+| `main()` | Ejecuta todo el flujo completo: limpieza, agente, reporte, registro de métricas y reseteo de sesión. |
+
+---
+
+### Variables importantes
+
+| Variable | Descripción |
+|----------|-------------|
+| `BASE_DIR` | Directorio raíz del proyecto. |
+| `logger` | Logger principal para tracking de eventos y errores. |
+| `metrics_manager` | Instancia de `MetricsManager` para registrar todas las métricas del pipeline. |
+| `processed_dir` | Carpeta donde se guardan los CSV procesados. |
+| `df` | `DataFrame` concatenado con todos los CSV procesados. |
+| `controller` | Instancia de `AgentController`. |
+| `session_id` | Identificador de sesión del agente. |
+| `plan_text` | Plan de acción generado por el agente. |
+| `analysis_text` | Resultado del análisis de datos por el agente. |
+| `summary_text` | Resumen interpretativo generado por el agente. |
+| `optimization_text` | Resultado de la optimización del agente. |
+| `metrics_file` | Archivo JSON final con todas las métricas del pipeline. |
+
+---
+
+### Uso
+python scripts/full_system_pipeline.py
