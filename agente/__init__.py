@@ -6,6 +6,9 @@ from .config import *
 # Utilidades
 from .utils import *
 
+# Inspeccionar columnas
+from .column_inspector import *
+
 # Controlador principal del agente
 from .agent_controller import AgentController
 

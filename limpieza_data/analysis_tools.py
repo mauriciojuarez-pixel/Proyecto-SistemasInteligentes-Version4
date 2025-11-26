@@ -41,29 +41,43 @@ def detect_multicollinearity(df: pd.DataFrame, threshold: float = 0.9) -> list:
 
 
 def visualize_correlation_matrix(corr_matrix: pd.DataFrame, out_file: str):
+    """
+    Dibuja y guarda un heatmap de la matriz de correlación.
+    Protege contra matrices vacías o con dimensiones inválidas.
+    """
     try:
-        out_path = Path(out_file)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        plt.figure(figsize=(10, 8))
-        sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f")
-        plt.title("Matriz de correlación")
+        if corr_matrix is None:
+            raise ValueError("corr_matrix es None")
+
+        # Asegurarse que sea DataFrame y tenga tamaño
+        if not isinstance(corr_matrix, (pd.DataFrame,)):
+            corr_matrix = pd.DataFrame(corr_matrix)
+
+        if corr_matrix.size == 0:
+            # Nothing to plot
+            return None
+
+        # Evitar heatmap si hay <2 columnas numéricas útiles
+        if corr_matrix.shape[0] < 2 or corr_matrix.shape[1] < 2:
+            # Guardar una figura simple o saltar
+            fig, ax = plt.subplots(figsize=(4, 3))
+            ax.text(0.5, 0.5, "No hay suficientes columnas numéricas\npara calcular un heatmap",
+                    ha="center", va="center")
+            ax.axis("off")
+            fig.savefig(out_file, bbox_inches="tight")
+            plt.close(fig)
+            return out_file
+
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(corr_matrix, annot=False, cmap="viridis")
+        plt.title("Matriz de Correlación")
         plt.tight_layout()
-        plt.savefig(out_path)
+        plt.savefig(out_file)
         plt.close()
-        log_info(logger, f"Heatmap guardado: {out_path}")
-    except Exception as e:
-        log_error(logger, f"Error generando heatmap: {e}")
-        raise
+        return out_file
 
-
-def compute_descriptive_stats(df: pd.DataFrame) -> pd.DataFrame:
-    try:
-        desc = df.describe().T
-        desc["median"] = df.median(numeric_only=True)
-        log_info(logger, "Estadísticas descriptivas calculadas.")
-        return desc
     except Exception as e:
-        log_error(logger, f"Error al calcular estadísticas descriptivas: {e}")
+        # Log desde el módulo que llame a esta función
         raise
 
 
@@ -164,27 +178,46 @@ def summary_to_json(summary_df: pd.DataFrame, out_file: str):
         log_error(logger, f"Error exportando resumen a JSON: {e}")
         raise
 
+def compute_descriptive_stats(df: pd.DataFrame) -> dict:
+    """
+    Retorna estadísticas descriptivas (mean, std, min, max) de las columnas numéricas.
+    """
+    numeric_df = df.select_dtypes(include="number")
+    return numeric_df.describe().to_dict()
 
 
-def full_analysis_pipeline(df: pd.DataFrame, report_dir: str):
+
+# limpieza_data/analysis_tools.py
+def full_analysis_pipeline(df: pd.DataFrame, report_dir: str) -> dict:
+    results = {}
+    # 1. Correlaciones
+    numeric_df = df.select_dtypes(include="number")
+    results["correlation"] = numeric_df.corr().to_dict()
+
+    # 2. Estadísticas descriptivas
+    results["stats"] = numeric_df.describe().to_dict()
+
+    # 3. Multicolinealidad (opcional)
+    results["high_corr_pairs"] = detect_multicollinearity(numeric_df, threshold=0.9)
+
+    # Guardar resumen JSON
     try:
-        rep = Path(report_dir)
-        rep.mkdir(parents=True, exist_ok=True)
-
-        corr = compute_correlations(df)
-        visualize_correlation_matrix(corr, str(rep / "correlation_heatmap.png"))
-
-        mult = detect_multicollinearity(df)
-        stats = compute_descriptive_stats(df)
-        summary_to_json(stats, str(rep / "descriptive_stats.json"))
-        generate_histograms(df, str(rep / "histograms"))
-
-        log_info(logger, "Pipeline analítico completado.")
-        return {
-            "correlations": corr,
-            "multicollinearity": mult,
-            "statistics": stats
-        }
+        summary_path = Path(report_dir) / "summary.json"
+        import json
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=4)
     except Exception as e:
-        log_error(logger, f"Error pipeline analítico: {e}")
-        raise
+        log_error(logger, f"Error exportando resumen a JSON: {e}")
+
+    return results
+
+
+def describe_dataset(df):
+    stats = compute_descriptive_stats(df)
+    corrs = compute_correlations(df)
+    multi = detect_multicollinearity(df)
+    return {
+        "stats": stats.to_dict(),
+        "correlations": corrs.to_dict(),
+        "multicollinearity": multi,
+    }

@@ -16,6 +16,7 @@ class AgentController:
 
     def __init__(self):
         # Diccionario de agentes por session_id
+        self.last_output = None
         self.agents: dict[str, AutonomousAgent] = {}
         log_info(logger, f"[{timestamp_now()}] AgentController inicializado.")
 
@@ -41,6 +42,8 @@ class AgentController:
         agent = self.get_agent(session_id)
         try:
             plan = agent.plan_actions(goal)
+            self.last_output = plan
+
             log_info(logger, f"[{timestamp_now()}] Plan generado para sesión '{session_id}': {plan}")
             return plan
         except Exception as e:
@@ -55,6 +58,8 @@ class AgentController:
         agent = self.get_agent(session_id)
         try:
             analysis = agent.analyze_data(df, instruction=instruction)
+            self.last_output = analysis
+
             log_info(logger, f"[{timestamp_now()}] Análisis completado para sesión '{session_id}'.")
             return analysis
         except Exception as e:
@@ -69,6 +74,8 @@ class AgentController:
         agent = self.get_agent(session_id)
         try:
             summary = agent.generate_summary(instruction=instruction)
+            self.last_output = summary
+
             log_info(logger, f"[{timestamp_now()}] Resumen generado para sesión '{session_id}'.")
             return summary
         except Exception as e:
@@ -83,6 +90,8 @@ class AgentController:
         agent = self.get_agent(session_id)
         try:
             result = agent.self_optimize()
+            self.last_output = result
+
             log_info(logger, f"[{timestamp_now()}] Agente '{session_id}' optimizado: {result}")
             return result
         except Exception as e:

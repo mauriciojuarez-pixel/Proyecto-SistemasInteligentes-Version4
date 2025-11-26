@@ -71,25 +71,20 @@ class AutonomousAgent:
 
     # ---------------------------------------------------------------------
     def _generate_visualization_suggestions(self, df: pd.DataFrame):
-        """
-        Genera recomendaciones de visualización basadas en tipos de columnas y correlaciones.
-        """
+        """Genera recomendaciones de visualización basadas en tipos de columnas y correlaciones."""
         suggestions = []
         num_cols = df.select_dtypes(include="number").columns.tolist()
         cat_cols = df.select_dtypes(include="object").columns.tolist()
         date_cols = df.select_dtypes(include="datetime").columns.tolist()
 
-        # Histogramas y boxplots para numéricas
         for col in num_cols:
             suggestions.append(f"Histograma para '{col}'")
             suggestions.append(f"Boxplot para '{col}'")
 
-        # Gráficos de barras para categóricas
         for col in cat_cols:
             for num in num_cols:
                 suggestions.append(f"Gráfico de barras de '{num}' agrupado por '{col}'")
 
-        # Tendencias temporales
         for date_col in date_cols:
             for num in num_cols:
                 suggestions.append(f"Gráfico de línea de '{num}' a lo largo del tiempo '{date_col}'")
@@ -98,9 +93,7 @@ class AutonomousAgent:
 
     # ---------------------------------------------------------------------
     def generate_summary(self, instruction="Genera un resumen interpretativo de los datos."):
-        """
-        Genera un resumen interpretativo usando Gemma vía ChainManager.
-        """
+        """Genera un resumen interpretativo usando Gemma vía ChainManager."""
         if self.original_df is None or self.original_df.empty:
             logger.warning("No hay datos originales disponibles para generar resumen.")
             return "No hay datos disponibles para generar resumen."
@@ -121,15 +114,22 @@ class AutonomousAgent:
         return summary_text
 
     # ---------------------------------------------------------------------
+    def execute(self, prompt: str):
+        """
+        Alias universal para ejecutar un prompt.
+        Compatible con ReportManager.
+        """
+        if self.original_df is None:
+            logger.warning("No hay datos cargados. Ejecutando con DataFrame vacío.")
+            return self.chain.execute_chain(df=pd.DataFrame(), instruction=prompt)
+        return self.chain.execute_chain(df=self.original_df, instruction=prompt, use_column_inspector=True)
+
+    # ---------------------------------------------------------------------
     def get_visualization_suggestions(self):
-        """Devuelve las sugerencias de visualización generadas en el último análisis."""
         return self.last_visualization_suggestions or []
 
     # ---------------------------------------------------------------------
     def decide_next_step(self):
-        """
-        Decide la siguiente acción basada en el estado actual del agente.
-        """
         if not self.last_analysis:
             logger.info("No hay análisis previo, la siguiente acción es analizar datos.")
             return "Analizar datos primero"
@@ -138,17 +138,11 @@ class AutonomousAgent:
 
     # ---------------------------------------------------------------------
     def self_optimize(self):
-        """
-        Simula optimización interna del agente.
-        """
         logger.info("Ejecutando optimización interna del agente...")
         return "Parámetros optimizados"
 
     # ---------------------------------------------------------------------
     def reset(self):
-        """
-        Reinicia memoria, contexto y estado del agente.
-        """
         self.memory.clear_memory(self.session_id)
         self.context = {}
         self.last_plan = None

@@ -36,12 +36,12 @@ def fill_nulls(df: pd.DataFrame, strategy: str = "mean", fill_value=None) -> pd.
         num_cols = df.select_dtypes(include="number").columns
         if strategy == "mean":
             for c in num_cols:
-                df[c].fillna(df[c].mean(), inplace=True)
+                df[c] = df[c].fillna(df[c].mean())
         elif strategy == "median":
             for c in num_cols:
-                df[c].fillna(df[c].median(), inplace=True)
+                df[c] = df[c].fillna(df[c].median())
         elif strategy == "constant":
-            df.fillna(fill_value, inplace=True)
+            df = df.fillna(fill_value)
         else:
             log_info(logger, f"Estrategia desconocida: {strategy}. No se llenaron nulos.")
         log_info(logger, "Valores nulos procesados.")
@@ -49,6 +49,7 @@ def fill_nulls(df: pd.DataFrame, strategy: str = "mean", fill_value=None) -> pd.
     except Exception as e:
         log_error(logger, f"Error rellenando nulos: {e}")
         raise
+
 
 
 def convert_types(df: pd.DataFrame, type_map: dict) -> pd.DataFrame:
@@ -69,11 +70,25 @@ def standardize_dates(df: pd.DataFrame, date_cols: list, fmt=None) -> pd.DataFra
         df = df.copy()
         for c in date_cols:
             if c in df.columns:
-                df[c] = pd.to_datetime(df[c], errors="coerce")
+                parsed = pd.to_datetime(df[c], errors="coerce")
+                # opcional: si casi todo es NaT, saltar
+                if parsed.notna().sum() == 0:
+                    log_info(logger, f"No se pudo convertir la columna {c} a fechas. Se omite.")
+                    continue
                 if fmt:
-                    df[c] = df[c].dt.strftime(fmt)
+                    df[c] = parsed.dt.strftime(fmt)
+                else:
+                    df[c] = parsed
         log_info(logger, f"Fechas estandarizadas: {date_cols}")
         return df
     except Exception as e:
         log_error(logger, f"Error estandarizando fechas: {e}")
         raise
+
+
+def clean_data(df):
+    df = normalize_columns(df)
+    df = remove_duplicates(df)
+    df = fill_nulls(df)
+    df = standardize_dates(df, date_cols=["fecha"])
+    return df
