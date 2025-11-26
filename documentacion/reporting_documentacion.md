@@ -1,4 +1,4 @@
-# 9. report_manager.py
+# 1. report_manager.py
 
 Proporciona la clase `ReportManager` para orquestar la generación completa de reportes analíticos.  
 Incluye limpieza de datos, análisis estadístico, generación de gráficos, integración con interpretación de IA y exportación a PDF.
