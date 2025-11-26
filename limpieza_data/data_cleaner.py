@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 from limpieza_data.logger import init_logger, log_info, log_error
 from limpieza_data.config import LOG_NAME
+import warnings
 
 logger = init_logger(LOG_NAME)
 
@@ -65,25 +66,27 @@ def convert_types(df: pd.DataFrame, type_map: dict) -> pd.DataFrame:
         raise
 
 
-def standardize_dates(df: pd.DataFrame, date_cols: list, fmt=None) -> pd.DataFrame:
-    try:
-        df = df.copy()
-        for c in date_cols:
-            if c in df.columns:
-                parsed = pd.to_datetime(df[c], errors="coerce")
-                # opcional: si casi todo es NaT, saltar
-                if parsed.notna().sum() == 0:
-                    log_info(logger, f"No se pudo convertir la columna {c} a fechas. Se omite.")
-                    continue
-                if fmt:
-                    df[c] = parsed.dt.strftime(fmt)
-                else:
-                    df[c] = parsed
-        log_info(logger, f"Fechas estandarizadas: {date_cols}")
-        return df
-    except Exception as e:
-        log_error(logger, f"Error estandarizando fechas: {e}")
-        raise
+def standardize_dates(df: pd.DataFrame, date_cols: list, fmt: str = None) -> pd.DataFrame:
+    COMMON_DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y", "%m-%d-%Y"]
+    
+    for col in date_cols:
+        if col not in df.columns:
+            continue
+        converted = False
+        for f in COMMON_DATE_FORMATS:
+            parsed = pd.to_datetime(df[col], format=f, errors="coerce")
+            if parsed.notna().sum() / len(parsed) > 0.6:
+                df[col] = parsed.dt.strftime(fmt) if fmt else parsed
+                converted = True
+                break
+        if not converted:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                parsed = pd.to_datetime(df[col], errors="coerce")
+                df[col] = parsed.dt.strftime(fmt) if fmt else parsed
+    return df
+
+
 
 
 def clean_data(df):

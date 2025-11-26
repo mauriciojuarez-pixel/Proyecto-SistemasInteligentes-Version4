@@ -33,6 +33,7 @@ from limpieza_data.analysis_tools import full_analysis_pipeline
 
 from limpieza_data.config import PROCESSED_PATH, BASE_DIR
 from limpieza_data.logger import init_logger, log_info, log_error
+import warnings
 
 
 logger = init_logger()  # Logger global del paquete
@@ -41,16 +42,36 @@ logger = init_logger()  # Logger global del paquete
 def detectar_columnas_fecha(df: pd.DataFrame) -> list:
     """
     Busca columnas que parecen fechas según patrones típicos.
+    Evita warnings de pandas y permite múltiples formatos.
     """
     posibles = []
+    COMMON_DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y", "%m-%d-%Y"]
+
     for col in df.columns:
         try:
             sample = df[col].dropna().astype(str).iloc[:20]
-            conv = pd.to_datetime(sample, errors="coerce")
-            if conv.notna().mean() > 0.6:  # >60% de conversión válida
-                posibles.append(col)
+            converted = False
+
+            # Probar formatos comunes
+            for fmt in COMMON_DATE_FORMATS:
+                parsed = pd.to_datetime(sample, format=fmt, errors="coerce")
+                if parsed.notna().sum() / len(parsed) > 0.6:
+                    posibles.append(col)
+                    converted = True
+                    break
+
+            # Si no se pudo con formatos, fallback seguro
+            if not converted:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", UserWarning)
+                    parsed = pd.to_datetime(sample, errors="coerce")
+                    if parsed.notna().sum() / len(parsed) > 0.6:
+                        posibles.append(col)
+
         except Exception:
             continue
+
+    return posibles
     return posibles
 
 

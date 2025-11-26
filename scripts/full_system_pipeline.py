@@ -49,28 +49,50 @@ from reporting.report_manager import ReportManager
 logger = init_logger("FullSystemPipeline")
 
 
-# ---------------------------------------------------------
-# Detectar columnas fecha
-# ---------------------------------------------------------
+import warnings
+
 def detectar_columnas_fecha(df: pd.DataFrame) -> list:
+    """
+    Detecta columnas que parecen contener fechas.
+    Se prueban formatos comunes antes de usar pd.to_datetime sin formato.
+    """
     posibles = []
+    COMMON_DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y", "%m-%d-%Y"]
+
     for col in df.columns:
         try:
             sample = df[col].dropna().astype(str).iloc[:50]
-            conv = pd.to_datetime(sample, errors="coerce")
-            if len(conv) > 0 and conv.notna().mean() > 0.6:
-                posibles.append(col)
+            converted = False
+
+            # Probar formatos comunes
+            for fmt in COMMON_DATE_FORMATS:
+                conv = pd.to_datetime(sample, format=fmt, errors="coerce")
+                if conv.notna().mean() > 0.6:
+                    posibles.append(col)
+                    converted = True
+                    break
+
+            # Fallback usando pd.to_datetime pero **silenciando warnings**
+            if not converted:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", UserWarning)
+                    conv = pd.to_datetime(sample, errors="coerce")
+                if conv.notna().mean() > 0.6:
+                    posibles.append(col)
+
         except Exception:
             continue
+
     return posibles
 
 
 
+
+
 # ---------------------------------------------------------
-# 1) PIPELINE DE LIMPIEZA Y ANÁLISIS
+# 1) PIPELINE DE LIMPIEZA Y ANÁLISIS (Actualizado)
 # ---------------------------------------------------------
 def pipeline_limpieza():
-
     log_info(logger, "=== INICIANDO PIPELINE DE LIMPIEZA ===")
 
     datasets = load_all_raw_csv()
@@ -81,32 +103,42 @@ def pipeline_limpieza():
     for filename, df in datasets.items():
         log_info(logger, f"Procesando dataset: {filename}")
 
+        # Normalización básica
         df = normalize_columns(df)
         df = remove_duplicates(df)
         df = fill_nulls(df, strategy="mean")
 
+        # Detectar columnas que podrían ser fechas
         cols_fecha = detectar_columnas_fecha(df)
         if cols_fecha:
+            # Estandarizar fechas con detección de múltiples formatos y sin warnings
             df = standardize_dates(df, cols_fecha)
 
+        # Asegurar que el ID sea entero
         if "id" in df.columns:
             df = convert_types(df, {"id": "Int64"})
 
+        # Detección y eliminación de outliers/anomalías
         df = detect_outliers(df, method="zscore", threshold=3.0)
         df = remove_anomalies(df)
 
+        # Score de calidad del dataset
         calidad = score_data_quality(df)
         log_info(logger, f"Score de calidad: {calidad}")
 
+        # Guardar dataset procesado
         processed_path = save_processed(df, filename)
         log_info(logger, f"Guardado en: {processed_path}")
 
+        # Directorio para reportes/análisis
         output_dir = BASE_DIR / "data" / "outputs" / "reports" / filename.replace(".csv", "")
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Pipeline completo de análisis adicional
         full_analysis_pipeline(df, str(output_dir))
 
     log_info(logger, "=== PIPELINE DE LIMPIEZA COMPLETADO ===")
+
 
 
 # ---------------------------------------------------------
